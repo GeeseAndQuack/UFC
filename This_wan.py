@@ -76,9 +76,17 @@ wins = fight_data[["fight_id",
                   "finish_round", 
                   "finish_time"]]
 
-df = df.merge(wins, how = "left", left_on = "fight_id", right_on="fight_id")
+df = df.merge(wins, how = "left", left_on = "fight_id", right_on = "fight_id")
 df["won"] = df.apply(lambda row: 1 if row["fighter_id"] == row["winner"] else 0, axis = 1)
 df.drop("winner", inplace = True, axis = 1)
+
+df["result"] = df["result"].astype("category")
+df["result_new"] = df["result"].cat.codes
+res_new = df["result_new"].values.reshape(-1,1)
+
+enc = preprocessing.OneHotEncoder()
+enc_data = enc.fit_transform(res_new)
+df1 = pd.concat([df, pd.DataFrame(enc_data)], axis = 1)
 
 xs = df.drop(["fighter_url", 
               "fighter_nickname", 
@@ -91,14 +99,11 @@ xs = df.drop(["fighter_url",
 
 y = df["won"]
 
-for col in xs.columns:
-    print(type(col))
-
-X_train, X_test, y_train, y_test = model_selection.train_test_split(
+""" X_train, X_test, y_train, y_test = model_selection.train_test_split(
     xs, y, test_size = 0.33, random_state=5)
 
 model = linear_model.LogisticRegression(random_state=1).fit(X_train, y_train)
 
 preds = model.predict(X_test)
 model.score(X_test, y_test)
-
+ """
