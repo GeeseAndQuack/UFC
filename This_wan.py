@@ -59,14 +59,6 @@ tot_ufc_fights = df.groupby("fighter_id").size().reset_index(name="Count")
 # Joining with fighter_data to get name for fighter
 tot_ufc_fights = tot_ufc_fights.merge(fighter_data[["fighter_id","fighter_f_name", "fighter_l_name"]], how = "left", left_on = "fighter_id", right_on = "fighter_id")
 
-# Converting ctrl_time and finish_time into a integer representation as seconds
-df["ctrl_time_sec"] = df.apply(
-    lambda row: min_sec_to_sec(row, "ctrl_time"), axis = 1
-)
-df["finish_time_sec"] = df.apply(
-    lambda row: min_sec_to_sec(row, "finish_time"), axis = 1
-)
-
 # Raw winner variable is as the fighter_id, want to conver this to a binary when joint on fighter_data
 wins = fight_data[["fight_id", 
                   "event_id", 
@@ -76,34 +68,62 @@ wins = fight_data[["fight_id",
                   "finish_round", 
                   "finish_time"]]
 
+# Creating dependent variable by merging the above dataframe
 df = df.merge(wins, how = "left", left_on = "fight_id", right_on = "fight_id")
 df["won"] = df.apply(lambda row: 1 if row["fighter_id"] == row["winner"] else 0, axis = 1)
-df.drop("winner", inplace = True, axis = 1)
+df.drop("winner", inplace = True, axis = 1) # We have replaced this with our binary "won"
+
+# Converting ctrl_time and finish_time into a integer representation as seconds
+df["ctrl_time_sec"] = df.apply(
+    lambda row: min_sec_to_sec(row, "ctrl_time"), axis = 1
+)
+df["finish_time_sec"] = df.apply(
+    lambda row: min_sec_to_sec(row, "finish_time"), axis = 1
+)
 
 df["result"] = df["result"].astype("category")
-df["result_new"] = df["result"].cat.codes
-res_new = df["result_new"].values.reshape(-1,1)
 
-enc = preprocessing.OneHotEncoder()
-enc_data = enc.fit_transform(res_new)
-df1 = pd.concat([df, pd.DataFrame(enc_data)], axis = 1)
+enc = preprocessing.OneHotEncoder(sparse_output=False)
+enc_data = enc.fit_transform(df[["result"]])
+enc_feature_names = enc.get_feature_names_out(["result"])
 
-xs = df.drop(["fighter_url", 
-              "fighter_nickname", 
-              "event_id", 
-              "fight_stat_id", 
-              "fight_id", 
-              "fighter_id",
-              "won"], 
-              axis = 1)
+df1 = pd.concat([df, pd.DataFrame(enc_data, columns = enc_feature_names)], axis = 1)
+
+xs = df1.drop(["fighter_url",
+            "fight_url",
+            "fighter_nickname", 
+            "event_id", 
+            "fight_stat_id", 
+            "fight_id", 
+            "fighter_id",
+            "won",
+            "fighter_f_name",
+            "fighter_l_name",
+            "result",
+            "result_details",
+            "finish_time",
+            "ctrl_time"], 
+            axis = 1)
+
+xs = xs.apply(pd.to_numeric, errors = "coerce")
+xs = (xs-xs.mean())/xs.std()
 
 y = df["won"]
 
-""" X_train, X_test, y_train, y_test = model_selection.train_test_split(
+xs = xs.fillna(0)
+
+X_train, X_test, y_train, y_test = model_selection.train_test_split(
     xs, y, test_size = 0.33, random_state=5)
 
-model = linear_model.LogisticRegression(random_state=1).fit(X_train, y_train)
+# Modelling
+model = linear_model.LogisticRegression(random_state=1,
+                                        max_iter = 500,
+                                        penalty = "elasticnet",
+                                        solver = "saga",
+                                        l1_ratio = 0.5 
+                                        ).fit(X_train, y_train)
 
 preds = model.predict(X_test)
 model.score(X_test, y_test)
- """
+
+# Think Bayesian makes more sense
