@@ -38,7 +38,7 @@ def min_sec_to_sec(row: pd.Series, time: str) -> float:
             return res
         else:
             return np.nan
-
+        
 df = fight_stat_data.merge(fighter_data, 
     how = "left", 
     left_on = "fighter_id", 
@@ -89,6 +89,11 @@ enc_feature_names = enc.get_feature_names_out(["result"])
 
 df1 = pd.concat([df, pd.DataFrame(enc_data, columns = enc_feature_names)], axis = 1)
 
+df1_a = df1[df1["fight_id"].duplicated(keep="first")]
+df1_b = df1[df1["fight_id"].duplicated(keep="last")]
+
+vs_df = pd.merge(df1_a, df1_a, how="left", on="fight_id", suffixes=["_A", "_B"])
+
 xs = df1.drop(["fighter_url",
             "fight_url",
             "fighter_nickname", 
@@ -107,9 +112,35 @@ xs = df1.drop(["fighter_url",
 
 xs = xs.apply(pd.to_numeric, errors = "coerce")
 xs = (xs-xs.mean())/xs.std()
+xs = xs.fillna(0)
 
 y = df["won"]
 
+xs = xs.fillna(0)
+
+vaz = ["fighter_url",
+            "fight_url",
+            "fighter_nickname", 
+            "event_id", 
+            "fight_stat_id", 
+            "fight_id", 
+            "fighter_id",
+            "won",
+            "fighter_f_name",
+            "fighter_l_name",
+            "result",
+            "result_details",
+            "finish_time",
+            "ctrl_time"]
+
+a_vars = [i + "_A" for i in vaz if i != "fight_id"]
+b_vars = [i + "_B" for i in vaz if i != "fight_id" and "won_B"]
+ab_vars = a_vars + b_vars + ["fight_id"]
+
+xs = vs_df.drop(ab_vars, axis = 1)
+
+xs = xs.apply(pd.to_numeric, errors = "coerce")
+xs = (xs-xs.mean())/xs.std()
 xs = xs.fillna(0)
 
 X_train, X_test, y_train, y_test = model_selection.train_test_split(
