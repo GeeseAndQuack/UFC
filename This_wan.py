@@ -138,6 +138,7 @@ b_vars = [i + "_B" for i in vaz if i != "fight_id" and "won_B"]
 ab_vars = a_vars + b_vars + ["fight_id"]
 
 xs = vs_df.drop(ab_vars, axis = 1)
+y = vs_df["won_A"]
 
 xs = xs.apply(pd.to_numeric, errors = "coerce")
 xs = (xs-xs.mean())/xs.std()
@@ -158,3 +159,28 @@ preds = model.predict(X_test)
 model.score(X_test, y_test)
 
 # Think Bayesian makes more sense
+
+# Fighter dict:
+numeric_cols = pd.Series([i for i in df1.columns if df1[i].dtype in ["float64","int64"]])
+fighters = df1[numeric_cols]
+cols_to_avg = ["total_strikes_att",
+               "total_strikes_succ",
+               "sig_strikes_att",
+               "sig_strikes_succ",
+               "takedown_att",
+               "takedown_succ",
+               "submission_att",
+               "reversals",
+               "strike_succ_prcnt",
+               "sig_strike_succ_prcnt",
+               "takedown_succ_prcnt",
+               "ctrl_time_sec",
+               "finish_time_sec",
+               "result_DQ",
+               "result_Decision",
+               "result_KO/TKO",
+               "result_Submission",
+               "result_TKO - Doctor's Stoppage"]
+
+fighters = fighters.groupby("fighter_id")[cols_to_avg].mean()
+
